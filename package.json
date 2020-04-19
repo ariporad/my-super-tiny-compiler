@@ -1,0 +1,10 @@
+{
+	"name": "my-super-tiny-compiler",
+	"version": "1.0.0",
+	"main": "index.js",
+	"license": "MIT",
+	"type": "module",
+	"devDependencies": {
+		"tap": "^14.10.7"
+	}
+}

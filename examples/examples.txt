@@ -1,0 +1,7 @@
+DEFINE(foo, STRING(bar));
+
+---
+
+DEFINE(foo, NUMBER(123));
+DEFINE(bar, NUMBER(456));
+DEFINE(baz, NUMBER(789));
