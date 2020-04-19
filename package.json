@@ -3,8 +3,15 @@
 	"version": "1.0.0",
 	"main": "index.js",
 	"license": "MIT",
-	"type": "module",
+	"scripts": {
+		"build": "tsc",
+		"watch": "tsc -w",
+		"run": "tsc && node build/examples/index.js",
+		"clean": "rm -rf build"
+	},
 	"devDependencies": {
-		"tap": "^14.10.7"
+		"@types/node": "^13.13.0",
+		"tap": "^14.10.7",
+		"typescript": "^3.8.3"
 	}
 }

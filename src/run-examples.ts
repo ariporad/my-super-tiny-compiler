@@ -1,13 +1,10 @@
 import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { compile } from '../src/index.js';
+import { resolve } from 'path';
+import { compile } from './index.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const examples = readFileSync(resolve(__dirname, '..', 'examples.txt'), 'utf8').split('\n---\n');
 
-const examples = readFileSync(resolve(__dirname, 'examples.txt'), 'utf8').split('\n---\n');
-
-const indent = (str) => '\t' + str.split('\n').join('\n\t');
+const indent = (str: string) => '\t' + str.split('\n').join('\n\t');
 
 examples
 	.map((example) => example.trim())

@@ -4,6 +4,35 @@ import { ParseError } from './helpers.js';
 const getIdentifierRegex = () => /[a-zA-Z0-9]/;
 const getWhitespaceRegex = () => /\s/; // For consistency
 
+type char = string;
+
+interface PredicateAPI {
+	peek(...matchers: Array<RegExp | char>): boolean;
+	consume(): char;
+}
+
+interface ActionAPI {
+	resetCurrToken(): void;
+
+	finishToken(type: string, data?: object): void;
+
+	readonly input: string;
+	readonly tokens: Token[]; // Mutating the contents of the array is OK
+	readonly pos: number;
+	readonly nextStartPos: number;
+	readonly currToken: string;
+}
+
+interface Predicate {
+	(api: PredicateAPI): Boolean;
+}
+
+interface Action {
+	(api: ActionAPI): void;
+}
+
+type Matcher = RegExp | char;
+
 /**
  * Interface Predicate (ex. match, matchAll)
  *
@@ -13,7 +42,7 @@ const getWhitespaceRegex = () => /\s/; // For consistency
  * consume() => String - Adds the next char to the current token, increments `pos`, returns the char
  */
 
-const match = (...matchers) => ({ peek, consume }) => {
+const match = (...matchers: Matcher[]): Predicate => ({ peek, consume }) => {
 	if (peek(...matchers)) {
 		consume();
 		return true;
@@ -21,10 +50,10 @@ const match = (...matchers) => ({ peek, consume }) => {
 	return false;
 };
 
-const matchAll = (...matchers) => ({ peek, consume }) => {
+const matchAll = (...matchers: Matcher[]): Predicate => (api) => {
 	let ret = false;
 	const predicate = match(...matchers);
-	while (predicate()) ret = true;
+	while (predicate(api)) ret = true;
 	return ret;
 };
 
@@ -36,39 +65,52 @@ const matchAll = (...matchers) => ({ peek, consume }) => {
  * action - a function invoked with { finishToken, resetCurrToken }, OR (preferred) a token type
  * 			string OR an array of arguments to finishToken
  */
-const tokenizers = [
+const tokenizers: Array<[Predicate, string | [string, object?] | Action]> = [
 	[match('(', ')'), 'paren'],
 	[matchAll(getIdentifierRegex()), 'identifier'],
 	[match(';'), 'semicolor'],
 	[match(','), 'comma'],
 	// Consume all the whitespace, then delete it
-	[matchAll(getWhitespaceRegex()), resetCurrToken],
+	[matchAll(getWhitespaceRegex()), ({ resetCurrToken }) => resetCurrToken()],
 ];
 
-export default function tokenizer(input) {
-	const tokens = [];
+interface Position {
+	readonly start: number;
+	readonly end: number;
+}
+
+interface Token {
+	readonly type: string;
+	readonly value: string;
+	readonly data: Readonly<object>;
+	readonly pos: Position;
+}
+
+export default function tokenizer(input: string) {
+	const tokens: Token[] = [];
 
 	let pos = 0;
 	let nextStartPos = 0;
 	let currToken = '';
 
-	const peek = (...matchers) => {
+	const peek = (...matchers: Matcher[]): boolean => {
 		let matched = false;
 		for (let i = 0; !matched && i < matchers.length; i++) {
-			if (matchers[i] instanceof RegExp && matchers[i].test(input[pos])) matched = true;
-			if (typeof matchers[i] === 'string' && input[pos] === matchers[i]) matched = true;
+			let matcher = matchers[i];
+			if (matcher instanceof RegExp) matched = matcher.test(input[pos]);
+			if (typeof matcher === 'string') matched = input[pos] === matcher;
 		}
 		return matched;
 	};
 
-	const consume = () => (currToken += input[pos++]);
+	const consume = (): char => (currToken += input[pos++]);
 
-	const resetCurrToken = () => {
+	const resetCurrToken = (): void => {
 		currToken = '';
 		nextStartPos = pos;
 	};
 
-	const finishToken = (type, data = {}) => {
+	const finishToken = (type: string, data: object = {}) => {
 		/**
 		 * Register a new token. Automagically adds position information. Call this after `pos` has
 		 * been fully incremented (ie. is past the end of the token).
@@ -76,14 +118,14 @@ export default function tokenizer(input) {
 		tokens.push({
 			type,
 			value: currToken,
-			...data,
+			data,
 			pos: { start: nextStartPos, end: pos - 1 },
 		});
 		resetCurrToken();
 	};
 
-	const predicateAPI = Object.freeze({ peek, consume });
-	const actionAPI = Object.freeze({
+	const predicateAPI: PredicateAPI = Object.freeze({ peek, consume });
+	const actionAPI: ActionAPI = Object.freeze({
 		resetCurrToken,
 		finishToken,
 		input,
@@ -120,7 +162,7 @@ export default function tokenizer(input) {
 	return tokens;
 }
 
-export const formatTokens = (tokens) =>
+export const formatTokens = (tokens: Token[]) =>
 	tokens
 		.map((token) => {
 			const { type, pos, ...data } = token;
