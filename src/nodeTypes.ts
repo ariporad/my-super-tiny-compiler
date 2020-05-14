@@ -3,15 +3,12 @@ import { SourceLocation, assert } from './helpers';
 type _ExtractTypes<T extends Node> = T extends { type: infer U } ? U : never;
 
 export const EXPRESSION_NODE_TYPES: ExpressionNodeTypes[] = ['CallExpression', 'Identifier'];
-export const STATEMENT_NODE_TYPES: StatementNodeTypes[] = ['ExpressionStatement'];
 
 export type ExpressionNodeTypes = _ExtractTypes<ExpressionNode>;
-export type StatementNodeTypes = _ExtractTypes<StatementNode>;
 export type NodeTypes = _ExtractTypes<Node>;
 
-export type Node = ProgramNode | IdentifierNode | CallExpressionNode | ExpressionStatementNode;
+export type Node = ProgramNode | ExpressionNode;
 export type ExpressionNode = CallExpressionNode | IdentifierNode;
-export type StatementNode = ExpressionStatementNode;
 
 export type NodeOfType<T extends NodeTypes> = Node & { type: T } extends infer U ? U : never;
 
@@ -22,7 +19,7 @@ interface NodeInterface {
 
 export interface ProgramNode extends NodeInterface {
 	type: 'Program';
-	body: StatementNode[];
+	body: ExpressionNode[];
 }
 
 export interface IdentifierNode extends NodeInterface {
@@ -34,11 +31,6 @@ export interface CallExpressionNode extends NodeInterface {
 	type: 'CallExpression';
 	name: IdentifierNode;
 	args: ExpressionNode[];
-}
-
-export interface ExpressionStatementNode extends NodeInterface {
-	type: 'ExpressionStatement';
-	expression: ExpressionNode;
 }
 
 export function checkNodeType<T extends NodeTypes>(

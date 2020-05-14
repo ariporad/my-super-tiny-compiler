@@ -7,16 +7,13 @@ import {
 	ProgramNode,
 	EXPRESSION_NODE_TYPES,
 	assertNodeType,
-	STATEMENT_NODE_TYPES,
-	NodeTypes,
-	NodeOfType,
 } from './nodeTypes';
 
 export default function parser(ctx: SourceContext, tokens: Token[]) {
 	let curr = 0;
 
 	// Must be invoked with `curr` pointing to a NEW token
-	const _parse = (): Node => {
+	const _parse = (): ExpressionNode => {
 		/**
 		 * The current token that the parser is evaluating. This will be different from
 		 * `tokens[curr]` after calls to check/expect with consume = true, because they match
@@ -41,6 +38,21 @@ export default function parser(ctx: SourceContext, tokens: Token[]) {
 			}
 			return true;
 		};
+
+		if (check('open-paren')) {
+			const expr = parse('paren-wrapped-expression');
+
+			assertNodeType(
+				EXPRESSION_NODE_TYPES,
+				expr,
+				new ParseError(expr.loc, `Expected an expression, got: ${expr.type}!`),
+			);
+
+			expect('close-paren');
+
+			// FIXME: loc needs to include parens;
+			return expr;
+		}
 
 		if (check('identifier')) {
 			let node: ExpressionNode = {
@@ -79,26 +91,7 @@ export default function parser(ctx: SourceContext, tokens: Token[]) {
 				expect('close-paren');
 			}
 
-			if (check('semicolon')) {
-				return { type: 'ExpressionStatement', loc: node.loc, expression: node };
-			} else {
-				return node;
-			}
-		}
-
-		if (check('open-paren')) {
-			const expr = parse('paren-wrapped-expression-statement');
-			assertNodeType(
-				EXPRESSION_NODE_TYPES,
-				expr,
-				new ParseError(expr.loc, `Expected an expression, got: ${expr.type}!`),
-			);
-			expect('close-paren');
-			return {
-				type: 'ExpressionStatement',
-				expression: expr,
-				loc: expr.loc, // FIXME: needs to include the parens
-			};
+			return node;
 		}
 
 		if (curr >= tokens.length) {
@@ -108,7 +101,7 @@ export default function parser(ctx: SourceContext, tokens: Token[]) {
 		}
 	};
 
-	const parse = (traceName: string): Node => {
+	const parse = (traceName: string): ExpressionNode => {
 		ctx.enter(traceName);
 
 		const node: Node = _parse();
@@ -126,14 +119,6 @@ export default function parser(ctx: SourceContext, tokens: Token[]) {
 
 	while (curr < tokens.length) {
 		const statement = parse('root');
-		assertNodeType(
-			STATEMENT_NODE_TYPES,
-			statement,
-			new ParseError(
-				statement.loc,
-				`Expected a statement, got a ${statement.type}! Did you forget a semicolon?`,
-			),
-		);
 		root.body.push(statement);
 	}
 
