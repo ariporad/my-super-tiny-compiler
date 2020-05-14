@@ -2,7 +2,8 @@ import { ParseError, char, SourceContext, SourceLocation } from './helpers';
 
 // JS RegExes are stateful in strange ways, so it's simpler to always recreate them
 const getIdentifierRegex = () => /[a-z_A-Z0-9]/;
-const getWhitespaceRegex = () => /\s/; // For consistency
+const getWhitespaceRegex = () => /[ \t\r]/;
+const getNewlineRegex = () => /[\r\n|\n]/;
 
 type Criterion = RegExp | char;
 
@@ -158,6 +159,7 @@ const tokenizers: Array<[Predicate, TokenType | [TokenType, object?] | Action]> 
 	[matchAll(getIdentifierRegex()), 'identifier'],
 	[match(';'), 'semicolon'],
 	[match(','), 'comma'],
+	[matchAll(getNewlineRegex()), 'newline'],
 	// Consume all the whitespace, then delete it
 	[matchAll(getWhitespaceRegex()), ({ resetCurrToken }) => resetCurrToken()],
 ];
@@ -165,7 +167,13 @@ const tokenizers: Array<[Predicate, TokenType | [TokenType, object?] | Action]> 
 /**
  * All possible token types.
  */
-export type TokenType = 'identifier' | 'open-paren' | 'close-paren' | 'semicolon' | 'comma';
+export type TokenType =
+	| 'identifier'
+	| 'open-paren'
+	| 'close-paren'
+	| 'semicolon'
+	| 'comma'
+	| 'newline';
 
 /**
  * A single token of the input. This represents the smallest semantically-significant unit of input.
@@ -300,16 +308,3 @@ export default function tokenizer(ctx: SourceContext) {
 
 	return tokens;
 }
-
-/**
- * A simple helper to format a list of tokens in a human-readable format.
- */
-export const formatTokens = (tokens: Token[]) =>
-	tokens
-		.map((token) => {
-			const { type, loc, ...data } = token;
-			const startPos = `${loc.start}`.padStart(3);
-			const endPos = `${loc.end}`.padStart(3);
-			return `${type.padEnd(10, ' ')} (${startPos} -${endPos}): ${JSON.stringify(data)}`;
-		})
-		.join('\n');

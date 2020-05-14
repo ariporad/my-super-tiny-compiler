@@ -3,6 +3,7 @@ import { SourceLocation, assert } from './helpers';
 type _ExtractTypes<T extends Node> = T extends { type: infer U } ? U : never;
 
 export const EXPRESSION_NODE_TYPES: ExpressionNodeTypes[] = ['CallExpression', 'Identifier'];
+export const NODE_TYPES: NodeTypes[] = ['Program', ...EXPRESSION_NODE_TYPES];
 
 export type ExpressionNodeTypes = _ExtractTypes<ExpressionNode>;
 export type NodeTypes = _ExtractTypes<Node>;
@@ -16,6 +17,10 @@ interface NodeInterface {
 	type: NodeTypes;
 	loc: SourceLocation;
 }
+
+export const isNode = (maybeNode: any): maybeNode is Node => {
+	return typeof maybeNode.type === 'string' && NODE_TYPES.includes(maybeNode.type);
+};
 
 export interface ProgramNode extends NodeInterface {
 	type: 'Program';

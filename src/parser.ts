@@ -9,118 +9,170 @@ import {
 	assertNodeType,
 } from './nodeTypes';
 
-export default function parser(ctx: SourceContext, tokens: Token[]) {
-	let curr = 0;
+interface ParserInterface {
+	check(type: TokenType, consume?: boolean, ignoreNewlines?: boolean): boolean;
 
-	// Must be invoked with `curr` pointing to a NEW token
-	const _parse = (): ExpressionNode => {
-		/**
-		 * The current token that the parser is evaluating. This will be different from
-		 * `tokens[curr]` after calls to check/expect with consume = true, because they match
-		 * against `tokens[curr]` (and consequently set `token` to that on a successful match), but
-		 * then update `curr` for the next call.
-		 */
-		let token = tokens[curr];
+	expect(type: TokenType, consume?: boolean, ignoreNewlines?: boolean): boolean;
 
-		const check = (type: TokenType, consume: boolean = true): boolean => {
-			if (curr >= tokens.length) return false;
-			if (tokens[curr].type !== type) return false;
-			else if (consume) token = tokens[curr++];
-			return true;
-		};
+	parse(traceName: string): ExpressionNode;
 
-		const expect = (type: TokenType, consume: boolean = true): boolean => {
-			if (!check(type, consume)) {
-				throw new ParseError(
-					token.loc,
-					`Unexpected token ${token.type}! Expected ${type}!`,
-				);
-			}
-			return true;
-		};
+	getToken(): Token;
+}
 
-		if (check('open-paren')) {
-			const expr = parse('paren-wrapped-expression');
+class Parser implements ParserInterface {
+	private curr = 0;
 
-			assertNodeType(
-				EXPRESSION_NODE_TYPES,
-				expr,
-				new ParseError(expr.loc, `Expected an expression, got: ${expr.type}!`),
-			);
+	readonly ctx: SourceContext;
 
-			expect('close-paren');
+	readonly tokens: Token[];
 
-			// FIXME: loc needs to include parens;
-			return expr;
-		}
+	/**
+	 * The current token that the parser is evaluating. This will be different from
+	 * `tokens[curr]` after calls to check/expect with consume = true, because they match
+	 * against `tokens[curr]` (and consequently set `token` to that on a successful match), but
+	 * then update `curr` for the next call.
+	 */
+	private token: Token;
 
-		if (check('identifier')) {
-			let node: ExpressionNode = {
-				type: 'Identifier',
-				name: token.value,
-				loc: token.loc,
-			};
+	constructor(ctx: SourceContext, tokens: Token[]) {
+		this.ctx = ctx;
+		this.tokens = tokens;
+		this.token = tokens[0];
+	}
 
-			// CallExpression
-			if (check('open-paren')) {
-				node = {
-					type: 'CallExpression',
-					name: node,
-					args: [],
-					loc: node.loc, // TODO: correct loc
-				};
-
-				while (
-					!check('close-paren', false) &&
-					(node.args.length === 0 || expect('comma'))
-				) {
-					const arg = parse('function-arg');
-
-					assertNodeType(
-						EXPRESSION_NODE_TYPES,
-						arg,
-						new ParseError(
-							arg.loc,
-							`Expected an expression as a function argument! Got: ${arg.type}!`,
-						),
-					);
-
-					node.args.push(arg);
-				}
-
-				expect('close-paren');
-			}
-
-			return node;
-		}
-
-		if (curr >= tokens.length) {
-			throw new ParseError(new SourceLocation(ctx, ctx.input.length - 1), 'Unexpected EOF!');
-		} else {
-			throw new ParseError(tokens[curr].loc, `Unexpected Token: ${tokens[curr].type}!`);
-		}
+	getToken = (): Token => {
+		return this.token;
 	};
 
-	const parse = (traceName: string): ExpressionNode => {
-		ctx.enter(traceName);
+	check = (type: TokenType, consume: boolean = true, ignoreNewlines = true): boolean => {
+		if (this.curr >= this.tokens.length) return false;
+		if (this.tokens[this.curr].type !== type) {
+			if (ignoreNewlines && this.check('newline', true, false)) {
+				return this.check(type, consume, ignoreNewlines);
+			}
+			return false;
+		}
+		if (consume) this.token = this.tokens[this.curr++];
+		return true;
+	};
 
-		const node: Node = _parse();
+	expect = (type: TokenType, consume: boolean = true, ignoreNewlines = true): boolean => {
+		if (!this.check(type, consume, ignoreNewlines)) {
+			throw new ParseError(
+				this.token.loc,
+				`Unexpected token ${this.token.type}! Expected ${type}!`,
+			);
+		}
+		return true;
+	};
 
-		ctx.exit();
+	parse = (traceName: string): ExpressionNode => {
+		this.ctx.enter(traceName);
+
+		const startCurr = this.curr;
+
+		const node = parse(this);
+
+		if (node === null) {
+			if (this.curr >= this.tokens.length) {
+				throw new ParseError(
+					new SourceLocation(this.ctx, this.ctx.input.length - 1),
+					'Unexpected EOF!',
+				);
+			} else {
+				throw new ParseError(
+					this.tokens[this.curr].loc,
+					`Unexpected Token: ${this.tokens[this.curr].type}!`,
+				);
+			}
+		}
+
+		node.loc = SourceLocation.union(
+			...this.tokens.slice(startCurr, this.curr).map((token) => token.loc),
+		);
+
+		this.ctx.exit();
 
 		return node;
 	};
 
-	const root: ProgramNode = {
-		type: 'Program',
-		loc: new SourceLocation(ctx, 0, ctx.input.length - 1),
-		body: [],
-	};
+	run = (): ProgramNode => {
+		const root: ProgramNode = {
+			type: 'Program',
+			loc: new SourceLocation(this.ctx, 0, this.ctx.input.length - 1),
+			body: [],
+		};
 
-	while (curr < tokens.length) {
-		const statement = parse('root');
-		root.body.push(statement);
+		while (this.curr < this.tokens.length) {
+			root.body.push(this.parse('root'));
+
+			// Semicolons serve to separate expressions. That means their tokens cause `check`s to
+			// fail inside parse, but can be freely discarded if we're between expressions anyways.
+			this.check('semicolon');
+		}
+
+		return root;
+	};
+}
+
+function parse({ getToken, parse, expect, check }: ParserInterface): ExpressionNode | null {
+	// Handle any expression wrapped in parens
+	if (check('open-paren')) {
+		const expr = parse('paren-wrapped-expression');
+
+		assertNodeType(
+			EXPRESSION_NODE_TYPES,
+			expr,
+			new ParseError(expr.loc, `Expected an expression, got: ${expr.type}!`),
+		);
+
+		expect('close-paren');
+
+		return expr;
 	}
 
-	return root;
+	// Identifier
+	if (check('identifier')) {
+		let node: ExpressionNode = {
+			type: 'Identifier',
+			name: getToken().value,
+			loc: getToken().loc,
+		};
+
+		// CallExpression
+		if (check('open-paren', true, false)) {
+			node = {
+				type: 'CallExpression',
+				name: node,
+				args: [],
+				loc: node.loc,
+			};
+
+			// Arguments
+			while (!check('close-paren', false) && (node.args.length === 0 || expect('comma'))) {
+				const arg = parse('function-arg');
+
+				assertNodeType(
+					EXPRESSION_NODE_TYPES,
+					arg,
+					new ParseError(
+						arg.loc,
+						`Expected an expression as a function argument! Got: ${arg.type}!`,
+					),
+				);
+
+				node.args.push(arg);
+			}
+
+			expect('close-paren');
+		}
+
+		return node;
+	}
+
+	return null;
+}
+
+export default function (ctx: SourceContext, tokens: Token[]): ProgramNode {
+	return new Parser(ctx, tokens).run();
 }

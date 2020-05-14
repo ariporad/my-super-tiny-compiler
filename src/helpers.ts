@@ -163,3 +163,9 @@ export class ParseError extends Error {
 		delete this.stack; // Should we be doing this?
 	}
 }
+
+export const prefixEachLine = (str: string, prefix: string): string =>
+	prefix + str.split('\n').join('\n' + prefix);
+
+export const indent = (text: string, amount: string = '    '): string =>
+	prefixEachLine(text, amount);
