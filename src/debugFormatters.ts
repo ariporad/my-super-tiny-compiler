@@ -1,6 +1,6 @@
 import { Token } from './tokenizer';
-import { Node, isNode } from './nodeTypes';
-import { prefixEachLine, indent } from './helpers';
+import { Node, getNodeInfo } from './nodeTypes';
+import { indent } from './helpers';
 
 /**
  * A simple helper to format a list of tokens in a human-readable format.
@@ -24,32 +24,21 @@ export const formatNode = (node: Node, shortIdentifiers = false) => {
 		return `${node.name} (${node.loc.start}-${node.loc.end})`;
 	}
 
-	const children: [string, Node[]][] = [];
-	const keys = Object.keys(node).filter(
-		(key) => !['type', 'loc'].includes(key),
-	) as (keyof typeof node)[];
-	let data: string[] = [`${node.loc.start}-${node.loc.end}`];
+	const info = getNodeInfo<typeof node>(node.type);
+	const data: string[] = [`${node.loc.start}-${node.loc.end}`].concat(
+		info.dataKeys.map((key) => `${key}: ${node[key]}`),
+	);
 
-	keys.forEach((key) => {
-		if (Array.isArray(node[key])) {
-			children.push([key, (node[key] as unknown) as Node[]]);
-		} else {
-			let val = node[key] as string | Node;
-			if (isNode(val)) val = formatNode(val, true);
-			data.push(`${key}: ${val}`);
-		}
-	});
+	let output = `${node.type} (${data.join(', ')})`;
 
-	const mainline = `${node.type} (${data.join(', ')})`;
-
-	if (children.length === 0) return mainline;
-	else if (children.length === 1) return `${mainline}\n${_formatNodes(children[0][1])}`;
-	else {
-		// WARNING: This code path is not yet tested
-		const childrenStr = children
-			.map(([name, nodes]) => `  ${name}:\n${_formatNodes(nodes)}`)
-			.join('\n\n');
-
-		return `${mainline}\n${childrenStr}`;
+	if (info.childrenKeys.length !== 0) {
+		info.childrenKeys.map((key) => {
+			const formatted = Array.isArray(node[key])
+				? _formatNodes(node[key])
+				: '    ' + formatNode(node[key]);
+			output += `\n  ${key}:\n${formatted}`;
+		});
 	}
+
+	return output;
 };
