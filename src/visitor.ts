@@ -1,50 +1,36 @@
 import { Visitor } from './traverser';
+import { assert } from './helpers';
+import { ExpressionINode } from './inodeTypes';
 import {
 	ProgramONode,
-	IS_ONODE,
+	ExpressionONode,
+	StatementONode,
+	ExpressionStatementONode,
 	IdentifierONode,
 	VariableDeclarationStatementONode,
-	ExpressionONode,
-	EXPRESSION_ONODE_TYPES,
-	ExpressionONodeTypes,
-	STATEMENT_ONODE_TYPES,
-	StatementONode,
-	StatementONodeTypes,
-	ExpressionStatementONode,
-	assertONodeType,
-	checkONodeType,
-} from './onodeTypes';
-import { assert, SourceLocation } from './helpers';
-import { ExpressionINode } from './inodeTypes';
+	CallExpressionONode,
+	PropertyAccessONode,
+	StringONode,
+	NumberONode,
+	VariableDeclarationONode,
+} from './nodes';
+import { SourceLocation } from './location';
 
 const visitor: Visitor = {
 	Program({ traverse }, inode): ProgramONode {
 		const body = traverse<ExpressionINode, ExpressionONode | StatementONode>(inode.body).map(
 			(onode) => {
-				if (checkONodeType(STATEMENT_ONODE_TYPES, onode)) return onode;
-				return {
-					_type: IS_ONODE,
-					type: 'ExpressionStatement',
-					expression: onode,
-					loc: onode.loc,
-				} as ExpressionStatementONode;
+				if (onode instanceof StatementONode) return onode;
+
+				return new ExpressionStatementONode(onode, onode);
 			},
 		);
-		return {
-			_type: IS_ONODE,
-			type: 'Program',
-			body,
-			loc: inode.loc,
-		};
+
+		return new ProgramONode(inode, body);
 	},
 
 	Identifier({ traverse }, inode): IdentifierONode {
-		return {
-			_type: IS_ONODE,
-			type: 'Identifier',
-			loc: inode.loc,
-			name: inode.name,
-		};
+		return new IdentifierONode(inode, inode.name);
 	},
 
 	CallExpression({ traverse }, inode): ExpressionONode | VariableDeclarationStatementONode {
@@ -58,48 +44,28 @@ const visitor: Visitor = {
 						new SourceLocation(inode.loc.ctx, inode.loc.end - 2, inode.loc.end - 1),
 				);
 				if (inode.args[0].type !== 'Identifier') {
-					return {
-						_type: IS_ONODE,
-						type: 'CallExpression',
-						target: {
-							_type: IS_ONODE,
-							type: 'PropertyAccess',
-							obj: traverse(inode.args[0]),
-							name: 'toString',
-							loc: inode.args[0].loc,
-						},
-						loc: inode.loc,
-						args: [],
-					};
+					return new CallExpressionONode(
+						inode,
+						new PropertyAccessONode(inode.args[0], inode.args[0], 'toString'),
+						[],
+					);
 				} else {
-					return {
-						_type: IS_ONODE,
-						type: 'String',
-						value: inode.args[0].name,
-						loc: inode.loc,
-					};
+					return new StringONode(inode.loc, inode.args[0].name);
 				}
 			case 'NUMBER':
 				assert(
 					inode.args.length === 1,
 					`NUMBER(...) must have exactly one argument!`,
-					inode.args[1]?.loc ||
+					inode.args[1] ||
 						// Closing paren
 						new SourceLocation(inode.loc.ctx, inode.loc.end - 2, inode.loc.end - 1),
 				);
 				if (inode.args[0].type !== 'Identifier') {
-					return {
-						_type: IS_ONODE,
-						type: 'CallExpression',
-						target: {
-							_type: IS_ONODE,
-							type: 'Identifier',
-							name: 'Number',
-							loc: inode.name.loc,
-						},
-						args: [traverse(inode.args[0])],
-						loc: inode.loc,
-					};
+					return new CallExpressionONode(
+						inode,
+						new IdentifierONode(inode.name.loc, 'Number'),
+						[traverse(inode.args[0])],
+					);
 				} else {
 					const value = Number(inode.args[0].name);
 					assert(
@@ -107,49 +73,34 @@ const visitor: Visitor = {
 						`Illegal numerical value: "${inode.args[0].name}"!`,
 						inode.args[0].loc,
 					);
-					return {
-						_type: IS_ONODE,
-						type: 'Number',
-						value: Number(inode.args[0].name),
-						loc: inode.loc,
-					};
+					return new NumberONode(inode, value);
 				}
 			case 'DEFINE':
 				assert(
 					inode.args.length === 2,
 					`DEFINE(...) must have exactly two arguments!`,
-					inode.args[2]?.loc ||
+					inode.args[2] ||
 						// Closing paren
 						new SourceLocation(inode.loc.ctx, inode.loc.end - 2, inode.loc.end - 1),
 				);
 				assert(
 					inode.args[0].type === 'Identifier',
 					`The first argument to DEFINE(...) must be an identifier!`,
-					inode.args[0].loc,
+					inode.args[0],
 				);
-				return {
-					_type: IS_ONODE,
-					type: 'VariableDeclarationStatement',
-					variant: 'let',
-					declarations: [
-						{
-							_type: IS_ONODE,
-							type: 'VariableDeclaration',
-							name: traverse(inode.args[0]),
-							value: traverse(inode.args[1]),
-							loc: inode.loc,
-						},
-					],
-					loc: inode.loc,
-				};
+				return new VariableDeclarationStatementONode(inode, 'let', [
+					new VariableDeclarationONode(
+						inode,
+						traverse(inode.args[0]),
+						traverse(inode.args[1]),
+					),
+				]);
 			default:
-				return {
-					_type: IS_ONODE,
-					type: 'CallExpression',
-					target: traverse(inode.name),
-					args: traverse(inode.args),
-					loc: inode.loc,
-				};
+				return new CallExpressionONode(
+					inode.loc,
+					traverse(inode.name),
+					traverse(inode.args),
+				);
 		}
 	},
 };

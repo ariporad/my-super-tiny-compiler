@@ -1,4 +1,5 @@
-import { ParseError, char, SourceContext, SourceLocation } from './helpers';
+import { char } from './helpers';
+import { SourceLocatable, SourceLocation, SourceContext, ParseError } from './location';
 
 // JS RegExes are stateful in strange ways, so it's simpler to always recreate them
 const getIdentifierRegex = () => /[a-z_A-Z0-9]/;
@@ -62,7 +63,7 @@ interface ActionAPI {
 	 * @see nextStartPos
 	 * @see pos
 	 */
-	getCurrLoc(): SourceLocation;
+	getCurrLoc(): SourceLocatable;
 
 	/**
 	 * The entire input string

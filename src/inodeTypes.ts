@@ -1,4 +1,5 @@
-import { SourceLocation, assert } from './helpers';
+import { assert } from './helpers';
+import { SourceLocatable, SourceLocation } from './location';
 
 /**
  * Helper Types

@@ -1,7 +1,7 @@
 import { Token } from './tokenizer';
 import { INode, inodeInfos, INodeInfo, IS_INODE } from './inodeTypes';
 import { indent, assert } from './helpers';
-import { ONode, onodeInfos, ONodeInfo, IS_ONODE } from './onodeTypes';
+import { ONode, IdentifierONode, NodeMeta, Node } from './nodes';
 
 /**
  * A simple helper to format a list of tokens in a human-readable format.
@@ -45,31 +45,29 @@ export const formatINode = (node: INode, shortIdentifiers = false) => {
 	return output;
 };
 
-const _formatONodes = (nodes: ONode[]): string =>
+const _formatNodes = (nodes: Node[]): string =>
 	// We join then indent because each `formatNode` output could be more than one line.
-	indent(nodes.map((node) => formatONode(node)).join('\n'));
+	indent(nodes.map((node) => formatNode(node)).join('\n'));
 
-export const formatONode = (node: ONode, shortIdentifiers = false) => {
-	assert(node._type === IS_ONODE, 'Found an INode in an ONode hierarchy!');
-	if (shortIdentifiers && node.type === 'Identifier') {
+export const formatNode = (node: Node, shortIdentifiers = false) => {
+	if (shortIdentifiers && node instanceof IdentifierONode) {
 		return `${node.name} (${node.loc.start}-${node.loc.end})`;
 	}
 
-	const info = onodeInfos[node.type] as ONodeInfo<typeof node>;
+	const meta = NodeMeta.get<typeof node>(node.type);
+
 	const data: string[] = [`${node.loc.start}-${node.loc.end}`].concat(
-		info.dataKeys.map((key) => `${key}: ${node[key]}`),
+		meta.dataKeys.map((key) => `${key}: ${node[key]}`),
 	);
 
 	let output = `${node.type} (${data.join(', ')})`;
 
-	if (info.childrenKeys.length !== 0) {
-		info.childrenKeys.map((key) => {
-			const formatted = Array.isArray(node[key])
-				? _formatONodes(node[key])
-				: '    ' + formatONode(node[key]);
-			output += `\n  ${key}:\n${formatted}`;
-		});
-	}
+	meta.childrenKeys.forEach((key) => {
+		const formatted = Array.isArray(node[key])
+			? _formatNodes(node[key])
+			: '    ' + formatNode(node[key]);
+		output += `\n  ${key}:\n${formatted}`;
+	});
 
 	return output;
 };

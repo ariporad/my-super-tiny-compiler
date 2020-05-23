@@ -1,6 +1,5 @@
 import { ProgramINode, INodeTypes, INode, INodeOfType } from './inodeTypes';
-import { ONode } from './onodeTypes';
-import { SourceLocation } from './helpers';
+import { ONode } from './nodes/onodes';
 
 export interface TraverserAPI {
 	traverse<T extends INode, R extends ONode = ONode>(node: T): R;

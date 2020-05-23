@@ -1,6 +1,4 @@
 import { Token, TokenType } from './tokenizer';
-import { ParseError, SourceLocation, SourceContext, assert } from './helpers';
-
 import {
 	ExpressionINode,
 	ProgramINode,
@@ -8,6 +6,7 @@ import {
 	assertINodeType,
 	IS_INODE,
 } from './inodeTypes';
+import { SourceContext, ParseError, SourceLocation } from './location';
 
 interface ParserInterface {
 	check(type: TokenType, consume?: boolean, ignoreNewlines?: boolean): boolean;

@@ -6,7 +6,7 @@
 	"scripts": {
 		"build": "tsc",
 		"watch": "tsc -w",
-		"run": "tsc && node build/examples/index.js",
+		"start": "tsc && node build/run-examples.js",
 		"clean": "rm -rf build"
 	},
 	"devDependencies": {
