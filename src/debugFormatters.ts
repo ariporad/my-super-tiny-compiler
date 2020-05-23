@@ -1,6 +1,7 @@
 import { Token } from './tokenizer';
-import { Node, getNodeInfo } from './nodeTypes';
-import { indent } from './helpers';
+import { INode, inodeInfos, INodeInfo, IS_INODE } from './inodeTypes';
+import { indent, assert } from './helpers';
+import { ONode, onodeInfos, ONodeInfo, IS_ONODE } from './onodeTypes';
 
 /**
  * A simple helper to format a list of tokens in a human-readable format.
@@ -15,16 +16,17 @@ export const formatTokens = (tokens: Token[]) =>
 		})
 		.join('\n');
 
-const _formatNodes = (nodes: Node[]): string =>
+const _formatINodes = (nodes: INode[]): string =>
 	// We join then indent because each `formatNode` output could be more than one line.
-	indent(nodes.map((node) => formatNode(node)).join('\n'));
+	indent(nodes.map((node) => formatINode(node)).join('\n'));
 
-export const formatNode = (node: Node, shortIdentifiers = false) => {
+export const formatINode = (node: INode, shortIdentifiers = false) => {
+	assert(node._type === IS_INODE, 'Found an ONode in an INode hierarchy!');
 	if (shortIdentifiers && node.type === 'Identifier') {
 		return `${node.name} (${node.loc.start}-${node.loc.end})`;
 	}
 
-	const info = getNodeInfo<typeof node>(node.type);
+	const info = inodeInfos[node.type] as INodeInfo<typeof node>;
 	const data: string[] = [`${node.loc.start}-${node.loc.end}`].concat(
 		info.dataKeys.map((key) => `${key}: ${node[key]}`),
 	);
@@ -34,8 +36,37 @@ export const formatNode = (node: Node, shortIdentifiers = false) => {
 	if (info.childrenKeys.length !== 0) {
 		info.childrenKeys.map((key) => {
 			const formatted = Array.isArray(node[key])
-				? _formatNodes(node[key])
-				: '    ' + formatNode(node[key]);
+				? _formatINodes(node[key])
+				: '    ' + formatINode(node[key]);
+			output += `\n  ${key}:\n${formatted}`;
+		});
+	}
+
+	return output;
+};
+
+const _formatONodes = (nodes: ONode[]): string =>
+	// We join then indent because each `formatNode` output could be more than one line.
+	indent(nodes.map((node) => formatONode(node)).join('\n'));
+
+export const formatONode = (node: ONode, shortIdentifiers = false) => {
+	assert(node._type === IS_ONODE, 'Found an INode in an ONode hierarchy!');
+	if (shortIdentifiers && node.type === 'Identifier') {
+		return `${node.name} (${node.loc.start}-${node.loc.end})`;
+	}
+
+	const info = onodeInfos[node.type] as ONodeInfo<typeof node>;
+	const data: string[] = [`${node.loc.start}-${node.loc.end}`].concat(
+		info.dataKeys.map((key) => `${key}: ${node[key]}`),
+	);
+
+	let output = `${node.type} (${data.join(', ')})`;
+
+	if (info.childrenKeys.length !== 0) {
+		info.childrenKeys.map((key) => {
+			const formatted = Array.isArray(node[key])
+				? _formatONodes(node[key])
+				: '    ' + formatONode(node[key]);
 			output += `\n  ${key}:\n${formatted}`;
 		});
 	}

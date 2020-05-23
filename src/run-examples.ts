@@ -5,6 +5,9 @@ import { indent } from './helpers.js';
 
 const examples = readFileSync(resolve(__dirname, '..', 'examples.txt'), 'utf8').split('\n---\n');
 
+// Clear the console
+process.stdout.write('\u001B[2J\u001B[0;0f');
+
 examples
 	.map((example) => example.trim())
 	.forEach((example) => {

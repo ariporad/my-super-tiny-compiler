@@ -7,13 +7,26 @@ export type { AssertionError };
 export function assert(condition: boolean): asserts condition;
 export function assert(condition: boolean, error: Error): asserts condition;
 export function assert(condition: boolean, message: string): asserts condition;
-export function assert(condition: boolean, errorOrMessage?: Error | string): asserts condition;
-export function assert(condition: boolean, errorOrMessage?: Error | string): asserts condition {
+export function assert(condition: boolean, message: string, loc: SourceLocation): asserts condition;
+export function assert(
+	condition: boolean,
+	errorOrMessage: Error | string | undefined,
+	loc: SourceLocation,
+): asserts condition;
+export function assert(
+	condition: boolean,
+	errorOrMessage?: Error | string,
+	loc?: SourceLocation,
+): asserts condition {
 	if (condition) return;
 
 	// Otherwise, throw...
 	if (errorOrMessage === undefined) errorOrMessage = 'Assertion Failed!';
-	if (typeof errorOrMessage === 'string') throw new AssertionError(errorOrMessage);
+	if (typeof errorOrMessage === 'string') {
+		// FIXME: loc is ignored if you pass an error.
+		if (loc) throw new ParseError(loc, errorOrMessage);
+		else throw new AssertionError(errorOrMessage);
+	}
 	throw errorOrMessage;
 }
 

@@ -2,19 +2,19 @@ import { Token, TokenType } from './tokenizer';
 import { ParseError, SourceLocation, SourceContext, assert } from './helpers';
 
 import {
-	Node,
-	ExpressionNode,
-	ProgramNode,
-	EXPRESSION_NODE_TYPES,
-	assertNodeType,
-} from './nodeTypes';
+	ExpressionINode,
+	ProgramINode,
+	EXPRESSION_INODE_TYPES,
+	assertINodeType,
+	IS_INODE,
+} from './inodeTypes';
 
 interface ParserInterface {
 	check(type: TokenType, consume?: boolean, ignoreNewlines?: boolean): boolean;
 
 	expect(type: TokenType, consume?: boolean, ignoreNewlines?: boolean): boolean;
 
-	parse(traceName: string): ExpressionNode;
+	parse(traceName: string): ExpressionINode;
 
 	getToken(): Token;
 }
@@ -66,7 +66,7 @@ class Parser implements ParserInterface {
 		return true;
 	};
 
-	parse = (traceName: string): ExpressionNode => {
+	parse = (traceName: string): ExpressionINode => {
 		this.ctx.enter(traceName);
 
 		const startCurr = this.curr;
@@ -96,8 +96,9 @@ class Parser implements ParserInterface {
 		return node;
 	};
 
-	run = (): ProgramNode => {
-		const root: ProgramNode = {
+	run = (): ProgramINode => {
+		const root: ProgramINode = {
+			_type: IS_INODE,
 			type: 'Program',
 			loc: new SourceLocation(this.ctx, 0, this.ctx.input.length - 1),
 			body: [],
@@ -115,13 +116,13 @@ class Parser implements ParserInterface {
 	};
 }
 
-function parse({ getToken, parse, expect, check }: ParserInterface): ExpressionNode | null {
+function parse({ getToken, parse, expect, check }: ParserInterface): ExpressionINode | null {
 	// Handle any expression wrapped in parens
 	if (check('open-paren')) {
 		const expr = parse('paren-wrapped-expression');
 
-		assertNodeType(
-			EXPRESSION_NODE_TYPES,
+		assertINodeType(
+			EXPRESSION_INODE_TYPES,
 			expr,
 			new ParseError(expr.loc, `Expected an expression, got: ${expr.type}!`),
 		);
@@ -133,7 +134,8 @@ function parse({ getToken, parse, expect, check }: ParserInterface): ExpressionN
 
 	// Identifier
 	if (check('identifier')) {
-		let node: ExpressionNode = {
+		let node: ExpressionINode = {
+			_type: IS_INODE,
 			type: 'Identifier',
 			name: getToken().value,
 			loc: getToken().loc,
@@ -142,6 +144,7 @@ function parse({ getToken, parse, expect, check }: ParserInterface): ExpressionN
 		// CallExpression
 		if (check('open-paren', true, false)) {
 			node = {
+				_type: IS_INODE,
 				type: 'CallExpression',
 				name: node,
 				args: [],
@@ -152,8 +155,8 @@ function parse({ getToken, parse, expect, check }: ParserInterface): ExpressionN
 			while (!check('close-paren', false) && (node.args.length === 0 || expect('comma'))) {
 				const arg = parse('function-arg');
 
-				assertNodeType(
-					EXPRESSION_NODE_TYPES,
+				assertINodeType(
+					EXPRESSION_INODE_TYPES,
 					arg,
 					new ParseError(
 						arg.loc,
@@ -173,6 +176,6 @@ function parse({ getToken, parse, expect, check }: ParserInterface): ExpressionN
 	return null;
 }
 
-export default function (ctx: SourceContext, tokens: Token[]): ProgramNode {
+export default function (ctx: SourceContext, tokens: Token[]): ProgramINode {
 	return new Parser(ctx, tokens).run();
 }
