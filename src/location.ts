@@ -118,7 +118,5 @@ export class ParseError extends Error {
 		super(msg);
 
 		this.loc = loc;
-
-		delete this.stack; // Should we be doing this?
 	}
 }

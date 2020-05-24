@@ -1,11 +1,17 @@
-import { NodeMeta, Node, StatementONode } from '..';
+import { NodeMeta, Node, StatementONode, NodeType } from '..';
 import { SourceLocatable } from '../../location';
+import { AllExpressionONodes } from './expressions';
+import { AllStatementONodes } from './statements';
 
-export abstract class ONode extends Node {}
+export type AllONodes = ProgramONode | AllExpressionONodes | AllStatementONodes;
+
+export abstract class ONode extends Node {
+	abstract readonly type: NodeType<AllONodes>;
+}
 
 export class ProgramONode extends ONode {
-	static readonly TYPE: 'Program' = 'Program';
-	readonly type: 'Program' = 'Program';
+	static readonly TYPE: 'OProgram' = 'OProgram';
+	readonly type: 'OProgram' = 'OProgram';
 	readonly body: StatementONode[];
 
 	constructor(loc: SourceLocatable, body: StatementONode[]) {

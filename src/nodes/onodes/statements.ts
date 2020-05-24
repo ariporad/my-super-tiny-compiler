@@ -2,11 +2,16 @@ import { NodeMeta, ExpressionONode, IdentifierONode } from '..';
 import { ONode } from '.';
 import { SourceLocatable } from '../../location';
 
+export type AllStatementONodes =
+	| ExpressionStatementONode
+	| VariableDeclarationONode
+	| VariableDeclarationStatementONode;
+
 export abstract class StatementONode extends ONode {}
 
 export class ExpressionStatementONode extends StatementONode {
-	static readonly TYPE: 'ExpressionStatement' = 'ExpressionStatement';
-	readonly type: 'ExpressionStatement' = 'ExpressionStatement';
+	static readonly TYPE: 'OExpressionStatement' = 'OExpressionStatement';
+	readonly type: 'OExpressionStatement' = 'OExpressionStatement';
 	readonly expression: ExpressionONode;
 
 	constructor(loc: SourceLocatable, expression: ExpressionONode) {
@@ -18,8 +23,8 @@ export class ExpressionStatementONode extends StatementONode {
 NodeMeta.register(ExpressionStatementONode, ['expression'], []);
 
 export class VariableDeclarationONode extends ONode {
-	static readonly TYPE: 'VariableDeclaration' = 'VariableDeclaration';
-	readonly type: 'VariableDeclaration' = 'VariableDeclaration';
+	static readonly TYPE: 'OVariableDeclaration' = 'OVariableDeclaration';
+	readonly type: 'OVariableDeclaration' = 'OVariableDeclaration';
 
 	readonly name: IdentifierONode;
 	readonly value: ExpressionONode;
@@ -34,8 +39,8 @@ export class VariableDeclarationONode extends ONode {
 NodeMeta.register(VariableDeclarationONode, ['name', 'value'], []);
 
 export class VariableDeclarationStatementONode extends StatementONode {
-	static readonly TYPE: 'VariableDeclarationStatement' = 'VariableDeclarationStatement';
-	readonly type: 'VariableDeclarationStatement' = 'VariableDeclarationStatement';
+	static readonly TYPE: 'OVariableDeclarationStatement' = 'OVariableDeclarationStatement';
+	readonly type: 'OVariableDeclarationStatement' = 'OVariableDeclarationStatement';
 
 	readonly variant: 'let' | 'const' | 'var';
 	readonly declarations: VariableDeclarationONode[];

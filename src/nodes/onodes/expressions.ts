@@ -2,12 +2,19 @@ import { ONode } from '.';
 import { NodeMeta } from '..';
 import { SourceLocatable } from '../../location';
 
+export type AllExpressionONodes =
+	| IdentifierONode
+	| PropertyAccessONode
+	| CallExpressionONode
+	| StringONode
+	| NumberONode;
+
 export abstract class ExpressionONode extends ONode {}
 export abstract class ReferenceONode extends ExpressionONode {}
 
 export class IdentifierONode extends ReferenceONode {
-	static readonly TYPE: 'Identifier' = 'Identifier';
-	readonly type: 'Identifier' = 'Identifier';
+	static readonly TYPE: 'OIdentifier' = 'OIdentifier';
+	readonly type: 'OIdentifier' = 'OIdentifier';
 
 	readonly name: string;
 
@@ -20,8 +27,8 @@ export class IdentifierONode extends ReferenceONode {
 NodeMeta.register(IdentifierONode, [], ['name']);
 
 export class PropertyAccessONode extends ReferenceONode {
-	static readonly TYPE: 'PropertyAccess' = 'PropertyAccess';
-	readonly type: 'PropertyAccess' = 'PropertyAccess';
+	static readonly TYPE: 'OPropertyAccess' = 'OPropertyAccess';
+	readonly type: 'OPropertyAccess' = 'OPropertyAccess';
 
 	readonly obj: ExpressionONode;
 	readonly key: string | number;
@@ -36,8 +43,8 @@ export class PropertyAccessONode extends ReferenceONode {
 NodeMeta.register(PropertyAccessONode, ['obj'], ['key']);
 
 export class CallExpressionONode extends ExpressionONode {
-	static readonly TYPE: 'CallExpression' = 'CallExpression';
-	readonly type: 'CallExpression' = 'CallExpression';
+	static readonly TYPE: 'OCallExpression' = 'OCallExpression';
+	readonly type: 'OCallExpression' = 'OCallExpression';
 
 	readonly callee: ReferenceONode;
 	readonly args: ExpressionONode[];
@@ -52,8 +59,8 @@ export class CallExpressionONode extends ExpressionONode {
 NodeMeta.register(CallExpressionONode, ['callee', 'args'], []);
 
 export class StringONode extends ExpressionONode {
-	static readonly TYPE: 'String' = 'String';
-	readonly type: 'String' = 'String';
+	static readonly TYPE: 'OString' = 'OString';
+	readonly type: 'OString' = 'OString';
 
 	readonly value: string;
 
@@ -66,8 +73,8 @@ export class StringONode extends ExpressionONode {
 NodeMeta.register(StringONode, [], ['value']);
 
 export class NumberONode extends ExpressionONode {
-	static readonly TYPE: 'Number' = 'Number';
-	readonly type: 'Number' = 'Number';
+	static readonly TYPE: 'ONumber' = 'ONumber';
+	readonly type: 'ONumber' = 'ONumber';
 
 	readonly value: number;
 

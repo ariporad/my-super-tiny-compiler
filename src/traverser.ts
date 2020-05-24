@@ -1,5 +1,6 @@
-import { ProgramINode, INodeTypes, INode, INodeOfType } from './inodeTypes';
 import { ONode } from './nodes/onodes';
+import { INode, ProgramINode, AllINodes } from './nodes/inodes';
+import { NodeType, NodeFromType } from './nodes';
 
 export interface TraverserAPI {
 	traverse<T extends INode, R extends ONode = ONode>(node: T): R;
@@ -11,29 +12,32 @@ export type VisitorHandler<T extends INode, R extends ONode = ONode> = (
 	node: T,
 ) => R;
 
-export type Visitor = { [K in INodeTypes]: VisitorHandler<INodeOfType<K>> };
+export type Visitor = {
+	[K in NodeType<AllINodes>]: VisitorHandler<NodeFromType<AllINodes, K>>;
+};
 
-export default function traverse(ast: ProgramINode, visitor: Visitor) {
+export default function traverser(ast: ProgramINode, visitor: Visitor) {
 	const stack: INode[] = [];
 
-	function _traverse<T extends INode, R extends ONode = ONode>(inode: T): R;
-	function _traverse<T extends INode, R extends ONode = ONode>(inode: T[]): R[];
-	function _traverse<T extends INode, R extends ONode = ONode>(inode: T | T[]): R | R[] {
+	function traverse<T extends INode, R extends ONode = ONode>(inode: T): R;
+	function traverse<T extends INode, R extends ONode = ONode>(inode: T[]): R[];
+	function traverse<T extends INode, R extends ONode = ONode>(inode: T | T[]): R | R[] {
 		if (Array.isArray(inode)) {
-			return inode.map((n) => _traverse<T, R>(n));
+			return inode.map((n) => traverse<T, R>(n));
 		}
 
 		stack.push(inode);
 
-		const visitorHandler = visitor[inode.type] as VisitorHandler<T, ONode>;
-
+		// This is definately sound but Typescript can't figure it out for some reason
 		// FIXME: We have no way to confirm that visitorHandler does indeed return an R
-		const onode = visitorHandler({ traverse: _traverse }, inode) as R;
+		const visitorHandler = (visitor[inode.type] as unknown) as VisitorHandler<T, R>;
+
+		const onode = visitorHandler({ traverse }, inode);
 
 		stack.pop();
 
 		return onode;
 	}
 
-	return _traverse(ast);
+	return traverse(ast);
 }

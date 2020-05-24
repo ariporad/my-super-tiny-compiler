@@ -1,12 +1,12 @@
 import { Token, TokenType } from './tokenizer';
+import { SourceContext, ParseError, SourceLocation } from './location';
 import {
 	ExpressionINode,
 	ProgramINode,
-	EXPRESSION_INODE_TYPES,
-	assertINodeType,
-	IS_INODE,
-} from './inodeTypes';
-import { SourceContext, ParseError, SourceLocation } from './location';
+	IdentifierINode,
+	CallExpressionINode,
+} from './nodes/inodes';
+import { assert } from './helpers';
 
 interface ParserInterface {
 	check(type: TokenType, consume?: boolean, ignoreNewlines?: boolean): boolean;
@@ -58,7 +58,7 @@ class Parser implements ParserInterface {
 	expect = (type: TokenType, consume: boolean = true, ignoreNewlines = true): boolean => {
 		if (!this.check(type, consume, ignoreNewlines)) {
 			throw new ParseError(
-				this.token.loc,
+				this.token,
 				`Unexpected token ${this.token.type}! Expected ${type}!`,
 			);
 		}
@@ -80,13 +80,14 @@ class Parser implements ParserInterface {
 				);
 			} else {
 				throw new ParseError(
-					this.tokens[this.curr].loc,
+					this.tokens[this.curr],
 					`Unexpected Token: ${this.tokens[this.curr].type}!`,
 				);
 			}
 		}
 
-		node.loc = SourceLocation.union(
+		// FIXME: We generally want Node.loc to be readonly, but we circumvent it here
+		(node as { loc: SourceLocation }).loc = SourceLocation.union(
 			...this.tokens.slice(startCurr, this.curr).map((token) => token.loc),
 		);
 
@@ -96,22 +97,17 @@ class Parser implements ParserInterface {
 	};
 
 	run = (): ProgramINode => {
-		const root: ProgramINode = {
-			_type: IS_INODE,
-			type: 'Program',
-			loc: new SourceLocation(this.ctx, 0, this.ctx.input.length - 1),
-			body: [],
-		};
+		const body = [];
 
 		while (this.curr < this.tokens.length) {
-			root.body.push(this.parse('root'));
+			body.push(this.parse('root'));
 
 			// Semicolons serve to separate expressions. That means their tokens cause `check`s to
 			// fail inside parse, but can be freely discarded if we're between expressions anyways.
 			this.check('semicolon');
 		}
 
-		return root;
+		return new ProgramINode(new SourceLocation(this.ctx, 0, this.ctx.input.length - 1), body);
 	};
 }
 
@@ -120,10 +116,9 @@ function parse({ getToken, parse, expect, check }: ParserInterface): ExpressionI
 	if (check('open-paren')) {
 		const expr = parse('paren-wrapped-expression');
 
-		assertINodeType(
-			EXPRESSION_INODE_TYPES,
-			expr,
-			new ParseError(expr.loc, `Expected an expression, got: ${expr.type}!`),
+		assert(
+			expr instanceof ExpressionINode,
+			new ParseError(expr, `Expected an expression, got: ${expr.type}!`),
 		);
 
 		expect('close-paren');
@@ -133,43 +128,31 @@ function parse({ getToken, parse, expect, check }: ParserInterface): ExpressionI
 
 	// Identifier
 	if (check('identifier')) {
-		let node: ExpressionINode = {
-			_type: IS_INODE,
-			type: 'Identifier',
-			name: getToken().value,
-			loc: getToken().loc,
-		};
+		const identifier = new IdentifierINode(getToken(), getToken().value);
 
 		// CallExpression
 		if (check('open-paren', true, false)) {
-			node = {
-				_type: IS_INODE,
-				type: 'CallExpression',
-				name: node,
-				args: [],
-				loc: node.loc,
-			};
+			let args: ExpressionINode[] = [];
 
 			// Arguments
-			while (!check('close-paren', false) && (node.args.length === 0 || expect('comma'))) {
+			while (!check('close-paren', false) && (args.length === 0 || expect('comma'))) {
 				const arg = parse('function-arg');
 
-				assertINodeType(
-					EXPRESSION_INODE_TYPES,
+				assert(
+					arg instanceof ExpressionINode,
+					`Expected an expression as a function argument! Got: ${arg.type}!`,
 					arg,
-					new ParseError(
-						arg.loc,
-						`Expected an expression as a function argument! Got: ${arg.type}!`,
-					),
 				);
 
-				node.args.push(arg);
+				args.push(arg);
 			}
 
 			expect('close-paren');
+
+			return new CallExpressionINode(identifier, identifier, args);
 		}
 
-		return node;
+		return identifier;
 	}
 
 	return null;

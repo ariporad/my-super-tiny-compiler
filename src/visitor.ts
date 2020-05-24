@@ -1,6 +1,4 @@
-import { Visitor } from './traverser';
 import { assert } from './helpers';
-import { ExpressionINode } from './inodeTypes';
 import {
 	ProgramONode,
 	ExpressionONode,
@@ -15,9 +13,11 @@ import {
 	VariableDeclarationONode,
 } from './nodes';
 import { SourceLocation } from './location';
+import { ProgramINode, ExpressionINode, IdentifierINode } from './nodes/inodes';
+import { Visitor } from './traverser';
 
 const visitor: Visitor = {
-	Program({ traverse }, inode): ProgramONode {
+	IProgram({ traverse }, inode: ProgramINode): ProgramONode {
 		const body = traverse<ExpressionINode, ExpressionONode | StatementONode>(inode.body).map(
 			(onode) => {
 				if (onode instanceof StatementONode) return onode;
@@ -29,30 +29,36 @@ const visitor: Visitor = {
 		return new ProgramONode(inode, body);
 	},
 
-	Identifier({ traverse }, inode): IdentifierONode {
+	IIdentifier({ traverse }, inode): IdentifierONode {
 		return new IdentifierONode(inode, inode.name);
 	},
 
-	CallExpression({ traverse }, inode): ExpressionONode | VariableDeclarationStatementONode {
+	ICallExpression({ traverse }, inode): ExpressionONode | VariableDeclarationStatementONode {
 		switch (inode.name.name) {
-			case 'STRING':
+			case 'STRING': {
 				assert(
 					inode.args.length === 1,
 					`STRING(...) must have exactly one argument!`,
-					inode.args[1]?.loc ||
+					inode.args[1] ||
 						// Closing paren
 						new SourceLocation(inode.loc.ctx, inode.loc.end - 2, inode.loc.end - 1),
 				);
-				if (inode.args[0].type !== 'Identifier') {
+				const firstArg = inode.args[0];
+				if (firstArg instanceof IdentifierINode) {
+					return new StringONode(inode, firstArg.name);
+				} else {
 					return new CallExpressionONode(
 						inode,
-						new PropertyAccessONode(inode.args[0], inode.args[0], 'toString'),
+						new PropertyAccessONode(
+							traverse(inode.args[0]),
+							traverse(inode.args[0]),
+							'toString',
+						),
 						[],
 					);
-				} else {
-					return new StringONode(inode.loc, inode.args[0].name);
 				}
-			case 'NUMBER':
+			}
+			case 'NUMBER': {
 				assert(
 					inode.args.length === 1,
 					`NUMBER(...) must have exactly one argument!`,
@@ -60,21 +66,23 @@ const visitor: Visitor = {
 						// Closing paren
 						new SourceLocation(inode.loc.ctx, inode.loc.end - 2, inode.loc.end - 1),
 				);
-				if (inode.args[0].type !== 'Identifier') {
+				const firstArg = inode.args[0];
+				if (firstArg instanceof IdentifierINode) {
+					const value = Number(firstArg.name);
+					assert(
+						!isNaN(value),
+						`Illegal numerical value: "${firstArg.name}"!`,
+						inode.args[0].loc,
+					);
+					return new NumberONode(inode, value);
+				} else {
 					return new CallExpressionONode(
 						inode,
 						new IdentifierONode(inode.name.loc, 'Number'),
 						[traverse(inode.args[0])],
 					);
-				} else {
-					const value = Number(inode.args[0].name);
-					assert(
-						!isNaN(value),
-						`Illegal numerical value: "${inode.args[0].name}"!`,
-						inode.args[0].loc,
-					);
-					return new NumberONode(inode, value);
 				}
+			}
 			case 'DEFINE':
 				assert(
 					inode.args.length === 2,
@@ -84,7 +92,7 @@ const visitor: Visitor = {
 						new SourceLocation(inode.loc.ctx, inode.loc.end - 2, inode.loc.end - 1),
 				);
 				assert(
-					inode.args[0].type === 'Identifier',
+					inode.args[0] instanceof IdentifierINode,
 					`The first argument to DEFINE(...) must be an identifier!`,
 					inode.args[0],
 				);

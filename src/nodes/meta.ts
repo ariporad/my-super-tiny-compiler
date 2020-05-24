@@ -1,13 +1,13 @@
 import { assert } from 'console';
 import { assertExists } from '../helpers';
-import { Node, NodeClass, NodeTypeString } from '.';
+import { Node, NodeClass, NodeType } from '.';
 
 export class NodeMeta<T extends Node> {
 	readonly nodeClass: NodeClass<T>;
 	readonly childrenKeys: ReadonlyArray<Exclude<keyof T, keyof Node>>;
 	readonly dataKeys: ReadonlyArray<Exclude<keyof T, keyof Node>>;
 
-	get type(): NodeTypeString<T> {
+	get type(): NodeType<T> {
 		return (this.constructor as NodeClass<T>).TYPE;
 	}
 
@@ -25,11 +25,11 @@ export class NodeMeta<T extends Node> {
 		this._registry.set(nodeClass.TYPE, new this(nodeClass, childrenKeys, dataKeys));
 	}
 
-	public static has<T extends Node>(type: NodeTypeString<T>): boolean {
+	public static has<T extends Node>(type: NodeType<T>): boolean {
 		return this._registry.has(type);
 	}
 
-	public static get<T extends Node>(type: NodeTypeString<T>): NodeMeta<T> {
+	public static get<T extends Node>(type: NodeType<T>): NodeMeta<T> {
 		return assertExists(this._registry.get(type), `Couldn't find NodeMeta for type: ${type}!`);
 	}
 

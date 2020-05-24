@@ -20,7 +20,8 @@ examples
 			console.log('\n');
 		} catch (err) {
 			console.log('\nERROR:\n');
-			console.log(indent(err.stack || err.message));
+			console.log(indent(err.message));
+			err.stack && console.log(indent(err.stack));
 			console.log('\n');
 		}
 		console.log(
