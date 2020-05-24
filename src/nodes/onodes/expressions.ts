@@ -22,6 +22,10 @@ export class IdentifierONode extends ReferenceONode {
 		super(loc);
 		this.name = name;
 	}
+
+	codegen(): string {
+		return this.name;
+	}
 }
 
 NodeMeta.register(IdentifierONode, [], ['name']);
@@ -37,6 +41,19 @@ export class PropertyAccessONode extends ReferenceONode {
 		super(loc);
 		this.obj = obj;
 		this.key = key;
+	}
+
+	codegen(): string {
+		if (typeof this.key === 'string' && /^[a-z][a-z0-9_]+$/gi.test(this.key)) {
+			return `${this.obj.codegen()}.${this.key}`;
+		} else {
+			const key =
+				typeof this.key === 'string'
+					? new StringONode(this, this.key)
+					: new NumberONode(this, this.key);
+
+			return `${this.obj.codegen()}[${key.codegen()}]`;
+		}
 	}
 }
 
@@ -54,6 +71,10 @@ export class CallExpressionONode extends ExpressionONode {
 		this.callee = callee;
 		this.args = args;
 	}
+
+	codegen(): string {
+		return `${this.callee.codegen()}(${this.args.map((node) => node.codegen()).join(',')})`;
+	}
 }
 
 NodeMeta.register(CallExpressionONode, ['callee', 'args'], []);
@@ -68,6 +89,11 @@ export class StringONode extends ExpressionONode {
 		super(loc);
 		this.value = value;
 	}
+
+	codegen(): string {
+		// FIXME: handle the " char
+		return `"${this.value}"`;
+	}
 }
 
 NodeMeta.register(StringONode, [], ['value']);
@@ -81,6 +107,10 @@ export class NumberONode extends ExpressionONode {
 	constructor(loc: SourceLocatable, value: number) {
 		super(loc);
 		this.value = value;
+	}
+
+	codegen(): string {
+		return this.value.toString();
 	}
 }
 

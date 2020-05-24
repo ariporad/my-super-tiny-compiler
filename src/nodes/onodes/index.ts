@@ -7,6 +7,8 @@ export type AllONodes = ProgramONode | AllExpressionONodes | AllStatementONodes;
 
 export abstract class ONode extends Node {
 	abstract readonly type: NodeType<AllONodes>;
+
+	abstract codegen(): string;
 }
 
 export class ProgramONode extends ONode {
@@ -17,6 +19,10 @@ export class ProgramONode extends ONode {
 	constructor(loc: SourceLocatable, body: StatementONode[]) {
 		super(loc);
 		this.body = body;
+	}
+
+	codegen(): string {
+		return this.body.map((node) => node.codegen()).join('\n\n');
 	}
 }
 

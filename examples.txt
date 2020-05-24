@@ -2,10 +2,11 @@ DEFINE(foo, STRING(bar));
 
 ---
 
-DEFINE(foo, NUMBER(123))
-NOT_A_CALL
-
+FUNC(MYFUNC, myarg) {
+	DEFINE(foo, NUMBER(123))
+	CONSOLE.LOG(STRING(IN_MYFUNC), foo, myarg)
+}
 
 (DEFINE(bar, NUMBER(456)))
 
-MYFUNC(MYFUNC2(bar, STRING(123)), NUMBER(789))
+MYFUNC(bar)

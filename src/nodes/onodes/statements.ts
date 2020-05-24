@@ -18,6 +18,10 @@ export class ExpressionStatementONode extends StatementONode {
 		super(loc);
 		this.expression = expression;
 	}
+
+	codegen(): string {
+		return `${this.expression.codegen()};`;
+	}
 }
 
 NodeMeta.register(ExpressionStatementONode, ['expression'], []);
@@ -33,6 +37,10 @@ export class VariableDeclarationONode extends ONode {
 		super(loc);
 		this.name = name;
 		this.value = value;
+	}
+
+	codegen(): string {
+		return `${this.name.codegen()} = ${this.value.codegen()}`;
 	}
 }
 
@@ -53,6 +61,10 @@ export class VariableDeclarationStatementONode extends StatementONode {
 		super(loc);
 		this.variant = variant;
 		this.declarations = declarations;
+	}
+
+	codegen(): string {
+		return `${this.variant} ${this.declarations.map((node) => node.codegen()).join(', ')};`;
 	}
 }
 
